@@ -125,8 +125,12 @@ flowchart LR
 
 | 表 | 内容 | 由谁写入 |
 |---|---|---|
-| `records` | 每一帧收发的 `ts`、`direction`、`protocol`、`peer`、`size`、`payload_hex` | `storeFrame()` |
-| `samples` | 每次成功解析 Modbus 应答的 `ts`、`temp`、`current_ma`、`voltage`、`status` | `onSample()` |
+| `records` | 每帧收发的原始字节 | `storeFrame()` |
+| `samples` | 每次成功解析的 Modbus 采样值 | `onSample()` |
+
+`records` 的列：`ts` 时间、`direction` 收发方向、`protocol` 协议类型、`peer` 对方地址、`size` 字节数、`payload_hex` 十六进制内容。
+
+`samples` 的列：`ts` 时间、`temp` 温度、`current_ma` 电流、`voltage` 电压、`status` 状态。
 
 「记录收发到 SQLite」勾选框只控制 `records`。只要 Modbus 轮询解析成功就会写 `samples`。清空按钮只清屏幕，不动数据库。
 
