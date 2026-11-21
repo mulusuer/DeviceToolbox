@@ -1,3 +1,4 @@
+import math
 import random
 import socket
 import struct
@@ -9,6 +10,8 @@ HOST = "127.0.0.1"
 PORT = 1502
 SERVER_PORT = 1503
 
+state = {"temp": 280.0, "current": 460.0, "voltage": 2200.0, "status": 1}
+
 
 def make_modbus_response(req):
     """功能：把读保持寄存器请求翻译成一帧 Modbus TCP 应答。"""
@@ -19,10 +22,23 @@ def make_modbus_response(req):
         return None
     _start, count = struct.unpack(">HH", req[8:12])
     count = min(max(count, 1), 16)
-    tick = int(time.time()) % 12
-    temp = 285 if tick < 8 else 335  # temp：温度×10，每隔几秒冲到 33.5 触发告警
-    base = [temp, 464, 2200, 1]      # base：温度/电流/电压/状态（都放大 10 倍，状态除外）
-    regs = [base[i % 4] for i in range(count)]  # regs：按请求个数重复基础值
+    tick = time.monotonic()                       # tick：单调递增的秒数，做缓慢周期
+    target = 310 + 40 * math.sin(tick / 9.0)     # target：27~35 °C 的正弦趋势（×10）
+    state["temp"] += (target - state["temp"]) * 0.35 + random.uniform(-1.5, 1.5)
+    if state["temp"] < 250: state["temp"] = 250
+    if state["temp"] > 360: state["temp"] = 360
+    state["current"] += random.uniform(-1.5, 1.5)
+    if state["current"] < 380: state["current"] = 380
+    if state["current"] > 620: state["current"] = 620
+    state["voltage"] += random.uniform(-3.0, 3.0)
+    if state["voltage"] < 2150: state["voltage"] = 2150
+    if state["voltage"] > 2250: state["voltage"] = 2250
+    if random.random() < 0.04:                    # status：小概率翻转，模拟设备状态变化
+        state["status"] = 1 - state["status"]
+
+    base = [int(state["temp"]), int(state["current"]),
+            int(state["voltage"]), state["status"]]  # base：温度/电流/电压/状态
+    regs = [base[i % 4] for i in range(count)]
     body = struct.pack(">BBB", unit, func, count * 2) + struct.pack(">" + "H" * count, *regs)
     return struct.pack(">HHH", tid, 0, len(body)) + body
 

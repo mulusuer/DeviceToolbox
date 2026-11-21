@@ -84,7 +84,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_output->setReadOnly(true);
     m_output->setMaximumBlockCount(2000);
     m_output->setLineWrapMode(QPlainTextEdit::NoWrap);
-    right->addWidget(m_output, 3);
+    right->addWidget(m_output, 2);
 
     auto *txBar = new QHBoxLayout();
     m_txLabel = new QLabel("TX 0 B", central);
@@ -105,7 +105,7 @@ MainWindow::MainWindow(QWidget *parent)
     buttons->addStretch(1);
     right->addLayout(buttons);
 
-    right->addWidget(makeModbusGroup(), 4);
+    right->addWidget(makeModbusGroup(), 6);
     body->addLayout(right);
     body->setStretch(0, 1);
     body->setStretch(1, 3);
@@ -113,7 +113,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     setCentralWidget(central);
     setWindowTitle("DeviceToolbox · 多协议设备调试台 + Modbus 主站");
-    resize(1180, 800);
+    resize(1280, 900);
     statusBar()->showMessage("先启动假设备，再点「打开设备」");
 
     connect(m_typeCombo, &QComboBox::currentIndexChanged, this, &MainWindow::onTypeChanged);
@@ -208,17 +208,21 @@ QWidget *MainWindow::makeModbusGroup()
     m_axisX = new QValueAxis();
     m_axisX->setRange(0, 120);
     m_axisX->setTitleText("秒");
+    m_axisX->setLabelFormat("%.0f");
+    m_axisX->setTickCount(7);
     m_axisY = new QValueAxis();
-    m_axisY->setRange(0, 50);
+    m_axisY->setRange(20, 40);
     m_axisY->setTitleText("°C");
+    m_axisY->setLabelFormat("%.0f");
+    m_axisY->setTickCount(6);
     m_chart->addAxis(m_axisX, Qt::AlignBottom);
     m_chart->addAxis(m_axisY, Qt::AlignLeft);
     m_tempSeries->attachAxis(m_axisX);
     m_tempSeries->attachAxis(m_axisY);
     m_chartView = new QChartView(m_chart, group);
     m_chartView->setRenderHint(QPainter::Antialiasing);
-    m_chartView->setMinimumHeight(150);
-    layout->addWidget(m_chartView, 1);
+    m_chartView->setMinimumHeight(240);
+    layout->addWidget(m_chartView, 3);
 
     m_pollTimer = new QTimer(this);
     return group;
