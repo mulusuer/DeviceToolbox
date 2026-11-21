@@ -66,16 +66,12 @@ python tools/fake_device.py
 2. 右下 Modbus 主站面板保持默认：从站号 `1`、起始地址 `0`、寄存器数 `4`、轮询间隔 `500 ms`、温度阈值 `30 °C`
 3. 点 **开始轮询**
 
-模拟设备每次应答返回四个寄存器：温度 ×10、电流 ×10、电压 ×10、状态。温度按正弦趋势在 27~35 °C 之间平滑波动并带随机扰动，超过 30 °C 时触发告警、回落时自动停止；电流、电压在各自范围内随机游走，状态偶尔翻转。
-
 ![主站运行中](docs/screenshot-modbus.png)
 
-做原始帧调试时，任选一种设备类型、选好切帧模式，在发送区输入内容后点 **发送**。HEX 输入按两个字符一个字节解析，空格会被忽略。
 
 `records.db` 生成在**进程的工作目录**，不是 exe 所在目录。
 
 ## 架构
-
 ```mermaid
 flowchart LR
     UI[MainWindow] -->|参数| DEV[Device : QThread<br/>传输层]
@@ -95,13 +91,12 @@ flowchart LR
     UI --> DB[(SQLite<br/>records + samples)]
 ```
 
-**传输层** —— `Device` 管理线程生命周期与统一信号接口，四个子类实现 `initDevice()`、`writeActually()`、`deinitDevice()`。网络对象在 `run()` 内创建，使它们的信号归属于工作线程。界面不直接碰 socket，发送统一走 `writeBytes()` → `invokeWriteBytes` → `writeActually()`。
+**传输层** —— `Device` 管理线程生命周期与统一信号接口，四个子类实现 `initDevice()`、`writeActually()`、`deinitDevice()`。网络对象在 `run()` 内创建，使它们的信号归属于工作线程。发送统一走 `writeBytes()` → `invokeWriteBytes` → `writeActually()`。
 
 **帧解析层** —— `FrameParser` 把字节流切成帧，支持原样透传、按换行切、按 Modbus TCP 的 MBAP 长度字段切（`total = 6 + length`）。半帧留在缓存里等下一批，一次收到多帧会切成列表返回；缓存超过 4096 字节则整块吐出，防止对方一直不发分隔符时无限增长。
 
-**协议层** —— `ModbusMaster` 拼 12 字节读请求，校验应答（长度、功能码、异常标志、字节数），大端解析四个寄存器、按倍率换算，然后发出 `sampleReady` 或 `alarm`。它不含任何 socket 或界面代码，可单独测试。
+**协议层** —— `ModbusMaster` 拼 12 字节读请求，校验应答（长度、功能码、异常标志、字节数），大端解析四个寄存器、然后发出 `sampleReady` 或 `alarm`。。
 
-新增第五种通信方式只需改四处：一个枚举值、一个 `Device` 子类、一个参数页、工厂里加一个 case。主窗口逻辑不用动。
 
 ## Modbus TCP 帧格式
 
@@ -128,14 +123,6 @@ flowchart LR
 | `records` | 每帧收发的原始字节 | `storeFrame()` |
 | `samples` | 每次成功解析的 Modbus 采样值 | `onSample()` |
 
-`records` 的列：`ts` 时间、`direction` 收发方向、`protocol` 协议类型、`peer` 对方地址、`size` 字节数、`payload_hex` 十六进制内容。
-
-`samples` 的列：`ts` 时间、`temp` 温度、`current_ma` 电流、`voltage` 电压、`status` 状态。
-
-「记录收发到 SQLite」勾选框只控制 `records`。只要 Modbus 轮询解析成功就会写 `samples`。清空按钮只清屏幕，不动数据库。
-
-查询全部使用带绑定值的预处理语句，不拼接 SQL 字符串。
-
 ## 目录结构
 
 ```text
@@ -161,9 +148,7 @@ docs/                      截图
 - 连续轮询 6 秒得到 19 次采样、0 次解析错误，写入 `samples` 且时间戳连续
 - 温度超过 30 °C 触发告警，回落后停止
 - TCP 客户端、TCP 服务端广播、UDP 三种方式都收到回显，来源标记正确
-- GUI 启动无崩溃，两张表自动建好
-
-串口通信需要真实硬件，未做实测。Linux 下已验证编译；运行图形界面需要 WSLg 或桌面环境。
+- Linux 下已验证编译
 
 ## 后续计划
 
